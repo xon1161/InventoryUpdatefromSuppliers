@@ -14,6 +14,7 @@ namespace InventoryUpdate
     {
         static void Main(string[] args)
         {
+            int iteration = 1;
             while (1 == 1)
             {
                 try
@@ -43,59 +44,175 @@ namespace InventoryUpdate
                     //    cls.close_SQLServer();
                     //    goto X;
                     //}
-                    string sql = "select MIID from tbl_Inventory where MIID in(select MIID from tbl_InventorySuppliers where updaterStatus in (0,1,3) and Availability=0 " +
-                        "except select MIID from tbl_InventorySuppliers where updaterStatus in (0,1,3) and Availability<>0) and Availability<>0";
-                    cls.close_SQLServer();
-                    cls.connect_SQLServer();
-                    SqlDataReader reader = cls.execute_ReturnRecord(sql, 1000);
-                    while (reader != null && reader.Read())
+                    if (iteration % 3 == 0)
                     {
-                        try
-                        {
-                            string MIID = reader["MIID"].ToString();
-                            MIIDs.Add(MIID);
-                            if (counter == 500)
-                            {
-                                List<SqlParameter> param = new List<SqlParameter>();
-                                param.Add(new SqlParameter("@MIIDs", string.Join(",", MIIDs)));
-                                DataSet s = new DataSet();
-                                //object data = null;
-                                //data = cls.exceuteSP_ReturnScalar("sp_Update_Inventory_Tables_Updaters", param, 600);
-                                //if(data.ToString()=="1")
-                                //    Console.WriteLine(ik + ". SCANNED 500 MIIDs");
-                                //else
-                                //    Console.WriteLine("Error occured");
-                                s = cls.exceuteSP_ReturnDataSet("sp_Update_Inventory_Tables_Updaters_debug", param, 600);
-                                MIIDs.Clear();
-                                counter = 0;
-                                if (s.Tables[5].Rows[0][0].ToString()=="1")
-                                    Console.WriteLine(ik + ". SCANNED 500 MIIDs");
-                                else
-                                    Console.WriteLine("Error occured");
-                                ik++;
-                            }
-                        }
-                        catch (Exception s)
-                        {
-                            reader.Close();
-                            flag = true;
+                        Console.WriteLine("Now starting IDs whose InventorySuppliers AVAILABILITY IS ZERO BUT Inventory is NON-ZERO");
+                        string sql = "select Distinct I.MIID from tbl_Inventory I inner join tbl_InventorySuppliers S on I.MIID=S.MIID where S.Availability=0 and S.updaterStatus<>2 and I.Availability>0";//and updaterStatus in (2)
+                        if (cls.connStr != null)
                             cls.close_SQLServer();
-                            counter = 0;
-                            break;
+                        cls.connect_SQLServer();
+                        SqlDataReader reader = cls.execute_ReturnRecord(sql, 1000);
+                        while (reader != null && reader.Read())
+                        {
+                            try
+                            {
+                                string MIID = reader["MIID"].ToString();
+                                MIIDs.Add(MIID);
+                                if (counter == 500)
+                                {
+                                    List<SqlParameter> param = new List<SqlParameter>();
+                                    param.Add(new SqlParameter("@MIIDs", string.Join(",", MIIDs)));
+                                    //param.Add(new SqlParameter("@executeBy", 1));
+                                    //DataSet s = new DataSet();
+                                    object data = null;
+                                    data = cls.exceuteSP_ReturnScalar("sp_Update_Inventory_Tables_Updaters", param, 600);
+                                    if (data.ToString() == "1")
+                                        Console.WriteLine(ik + ". SCANNED 500 MIIDs");
+                                    else
+                                        Console.WriteLine("Error occured");
+                                    //s = cls.exceuteSP_ReturnDataSet("sp_Update_Inventory_Tables_Updaters_debug", param, 600);
+                                    MIIDs.Clear();
+                                    counter = 0;
+                                    //if (s.Tables[1].Rows[0][0].ToString() == "1")
+                                    //    Console.WriteLine(ik + ". SCANNED 500 MIIDs");
+                                    //else
+                                    //    Console.WriteLine("Error occured");
+                                    ik++;
+                                }
+                            }
+                            catch (Exception s)
+                            {
+                                reader.Close();
+                                flag = true;
+                                cls.close_SQLServer();
+                                counter = 0;
+                                break;
+                            }
+                            counter++;
                         }
-                        counter++;
+                        if (flag)
+                        {
+                            goto X;
+                        }
+                        if (!reader.IsClosed)
+                            reader.Close();
+                        cls.close_SQLServer();
+                        Thread.Sleep(600000);
                     }
-                    if (flag)
+                    else if (iteration % 3 == 1) 
                     {
-                        goto X;
+                        Console.WriteLine("Now starting IDs whose Inventory AVAILABILITY IS ZERO BUT InventorySuppliers is NON-ZERO");
+                        string sql = "select distinct I.MIID from tbl_Inventory I inner join tbl_InventorySuppliers S on I.MIID=S.MIID where S.updaterStatus in (0,1,3) and S.Availability<>0 and I.Availability=0";
+                        if(cls.connStr!=null)
+                            cls.close_SQLServer();
+                        cls.connect_SQLServer();
+                        SqlDataReader reader = cls.execute_ReturnRecord(sql, 1000);
+                        while (reader != null && reader.Read())
+                        {
+                            try
+                            {
+                                string MIID = reader["MIID"].ToString();
+                                MIIDs.Add(MIID);
+                                if (counter == 500)
+                                {
+                                    List<SqlParameter> param = new List<SqlParameter>();
+                                    param.Add(new SqlParameter("@MIIDs", string.Join(",", MIIDs)));
+                                    //param.Add(new SqlParameter("@executeBy", 1));
+                                    //DataSet s = new DataSet();
+                                    object data = null;
+                                    data = cls.exceuteSP_ReturnScalar("sp_Update_Inventory_Tables_Updaters", param, 600);
+                                    if (data.ToString() == "1")
+                                        Console.WriteLine(ik + ". SCANNED 500 MIIDs");
+                                    else
+                                        Console.WriteLine("Error occured");
+                                    //s = cls.exceuteSP_ReturnDataSet("sp_Update_Inventory_Tables_Updaters_debug", param, 600);
+                                    MIIDs.Clear();
+                                    counter = 0;
+                                    //if (s.Tables[1].Rows[0][0].ToString() == "1")
+                                    //    Console.WriteLine(ik + ". SCANNED 500 MIIDs");
+                                    //else
+                                    //    Console.WriteLine("Error occured");
+                                    ik++;
+                                }
+                            }
+                            catch (Exception s)
+                            {
+                                reader.Close();
+                                flag = true;
+                                cls.close_SQLServer();
+                                counter = 0;
+                                break;
+                            }
+                            counter++;
+                        }
+                        if (flag)
+                        {
+                            goto X;
+                        }
+                        if (!reader.IsClosed)
+                            reader.Close();
+                        cls.close_SQLServer();
+                        Thread.Sleep(600000);
                     }
-                    if (!reader.IsClosed)
-                        reader.Close();
-                    cls.close_SQLServer();
-                    Thread.Sleep(600000);
+                    else if (iteration % 3 == 2)
+                    {
+                        Console.WriteLine("Now starting IDs whose Inventory Date is less than 7 days old but not in suppliers");
+                        string sql = "select DISTINCT I.MIID from tbl_Inventory I inner join tbl_InventorySuppliers S on I.MIID=S.MIID where S.updaterStatus in (0,1,3) and CAST(S.Date_Update as DATE)>=CAST(DATEADD(dd,-7,getdate()) as DATE) and  CAST(I.Date_Update as DATE)<CAST(DATEADD(dd,-7,getdate()) as DATE)";
+                        if (cls.connStr != null)
+                            cls.close_SQLServer();
+                        cls.connect_SQLServer();
+                        SqlDataReader reader = cls.execute_ReturnRecord(sql, 1000);
+                        while (reader != null && reader.Read())
+                        {
+                            try
+                            {
+                                string MIID = reader["MIID"].ToString();
+                                MIIDs.Add(MIID);
+                                if (counter == 500)
+                                {
+                                    List<SqlParameter> param = new List<SqlParameter>();
+                                    param.Add(new SqlParameter("@MIIDs", string.Join(",", MIIDs)));
+                                    //param.Add(new SqlParameter("@executeBy", 1));
+                                    //DataSet s = new DataSet();
+                                    object data = null;
+                                    data = cls.exceuteSP_ReturnScalar("sp_Update_Inventory_Tables_Updaters", param, 600);
+                                    if (data.ToString() == "1")
+                                        Console.WriteLine(ik + ". SCANNED 500 MIIDs");
+                                    else
+                                        Console.WriteLine("Error occured");
+                                    //s = cls.exceuteSP_ReturnDataSet("sp_Update_Inventory_Tables_Updaters_debug", param, 600);
+                                    MIIDs.Clear();
+                                    counter = 0;
+                                    //if (s.Tables[1].Rows[0][0].ToString() == "1")
+                                    //    Console.WriteLine(ik + ". SCANNED 500 MIIDs");
+                                    //else
+                                    //    Console.WriteLine("Error occured");
+                                    ik++;
+                                }
+                            }
+                            catch (Exception s)
+                            {
+                                reader.Close();
+                                flag = true;
+                                cls.close_SQLServer();
+                                counter = 0;
+                                break;
+                            }
+                            counter++;
+                        }
+                        if (flag)
+                        {
+                            goto X;
+                        }
+                        if (!reader.IsClosed)
+                            reader.Close();
+                        cls.close_SQLServer();
+                        Thread.Sleep(600000);
+                    }
                 }
                 catch (Exception w)
                 { }
+                iteration++;
             }
         }
     }
